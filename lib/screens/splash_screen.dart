@@ -1,9 +1,9 @@
+// lib/screens/splash_screen.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
+import '../controller/auth_controller.dart';
 import '../core/theme/app_theme.dart';
-import '../providers/auth_provider.dart';
-import 'auth/login_screen.dart';
-import 'home/home_screen.dart';
+import '../routes/app_routes.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -49,8 +49,8 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _initializeApp() async {
     _animationController.forward();
 
-    // Initialize auth provider
-    await context.read<AuthProvider>().initialize();
+    // Wait for auth initialization
+    final authController = Get.find<AuthController>();
 
     // Wait for animation to complete
     await Future.delayed(const Duration(milliseconds: 2500));
@@ -61,34 +61,12 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToNextScreen() {
-    final authProvider = context.read<AuthProvider>();
+    final authController = Get.find<AuthController>();
 
-    if (authProvider.isAuthenticated) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 300),
-        ),
-      );
+    if (authController.isAuthenticated) {
+      Get.offAllNamed(AppRoutes.home);
     } else {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 300),
-        ),
-      );
+      Get.offAllNamed(AppRoutes.login);
     }
   }
 

@@ -1,10 +1,12 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
+import 'controller/auth_controller.dart';
+import 'controller/vpn_controller.dart';
 import 'core/theme/app_theme.dart';
-import 'providers/auth_provider.dart';
-import 'providers/vpn_provider.dart';
-import 'screens/splash_screen.dart';
+import 'services/api_service.dart';
+import 'routes/app_routes.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +21,19 @@ void main() {
     ),
   );
 
+  // Initialize dependencies
+  initServices();
+
   runApp(const MyApp());
+}
+
+void initServices() {
+  // Initialize API Service
+  Get.put(VPNApiService(), permanent: true);
+
+  // Initialize Controllers
+  Get.put(AuthController(), permanent: true);
+  Get.put(VPNController(), permanent: true);
 }
 
 class MyApp extends StatelessWidget {
@@ -27,23 +41,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => VPNProvider()),
-      ],
-      child: MaterialApp(
-        title: 'SecureVPN',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const SplashScreen(),
-        builder: (context, child) {
-          return MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
-            child: child!,
-          );
-        },
-      ),
+    return GetMaterialApp(
+      title: 'SecureVPN',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      initialRoute: AppRoutes.splash,
+      getPages: AppRoutes.pages,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          child: child!,
+        );
+      },
     );
   }
 }

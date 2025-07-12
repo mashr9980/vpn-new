@@ -1,3 +1,4 @@
+// lib/services/api_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -16,7 +17,7 @@ class ApiException implements Exception {
 }
 
 class VPNApiService {
-  static const String baseUrl = 'http://your-server:8000/api/v1';
+  static const String baseUrl = 'http://192.168.18.23:8002/api/v1';
 
   String? _token;
 
@@ -207,6 +208,7 @@ class VPNApiService {
     }
   }
 
+  // Fixed: Return ServerHealth directly instead of ApiResponse<ServerHealth>
   Future<ApiResponse<ServerHealth>> getServerHealth(int serverId) async {
     try {
       final response = await http.get(
@@ -281,6 +283,7 @@ class VPNApiService {
     }
   }
 
+  // Fixed: Return ApiResponse<VPNConfigFile> to match return type
   Future<ApiResponse<VPNConfigFile>> downloadVPNConfig(int configId) async {
     try {
       final response = await http.get(
@@ -300,6 +303,7 @@ class VPNApiService {
     }
   }
 
+  // Fixed: Return ApiResponse<VPNConnectionStatus> to match usage
   Future<ApiResponse<VPNConnectionStatus>> getVPNStatus(int configId) async {
     try {
       final response = await http.get(

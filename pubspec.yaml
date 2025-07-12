@@ -32,7 +32,8 @@ dependencies:
     sdk: flutter
   http:
   dio:
-  provider:
+  get_storage:
+  get:
   flutter_svg:
   lottie:
   shimmer:

@@ -1,3 +1,4 @@
+// lib/core/theme/app_theme.dart
 import 'package:flutter/material.dart';
 
 class AppColors {
@@ -43,6 +44,33 @@ class AppColors {
   static const Color failed = Color(0xFFEF4444);
 }
 
+// Custom Shadows
+class AppShadows {
+  static const List<BoxShadow> small = [
+    BoxShadow(
+      color: Color.fromRGBO(17, 24, 39, 0.05),
+      blurRadius: 3,
+      offset: Offset(0, 1),
+    ),
+  ];
+
+  static const List<BoxShadow> medium = [
+    BoxShadow(
+      color: Color.fromRGBO(17, 24, 39, 0.1),
+      blurRadius: 8,
+      offset: Offset(0, 4),
+    ),
+  ];
+
+  static const List<BoxShadow> large = [
+    BoxShadow(
+      color: Color.fromRGBO(17, 24, 39, 0.15),
+      blurRadius: 20,
+      offset: Offset(0, 10),
+    ),
+  ];
+}
+
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
@@ -78,8 +106,8 @@ class AppTheme {
         ),
       ),
 
-      // Card Theme
-      cardTheme: const CardTheme(
+      // Card Theme - Fixed
+      cardTheme: const CardThemeData(
         color: AppColors.surface,
         elevation: 2,
         shadowColor: Color.fromRGBO(17, 24, 39, 0.1),

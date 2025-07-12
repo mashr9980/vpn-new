@@ -1,45 +1,52 @@
+// lib/controllers/vpn_controller.dart
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 
-class VPNProvider with ChangeNotifier {
-  final VPNApiService _apiService = VPNApiService();
+class VPNController extends GetxController {
+  final VPNApiService _apiService = Get.find<VPNApiService>();
 
   // Servers
-  List<Server> _servers = [];
-  bool _isLoadingServers = false;
-  String? _serversError;
+  final RxList<Server> _servers = <Server>[].obs;
+  final RxBool _isLoadingServers = false.obs;
+  final RxString _serversError = ''.obs;
 
   // Server health
-  final Map<int, ServerHealth> _serverHealthMap = {};
-  final Map<int, bool> _healthCheckLoading = {};
+  final RxMap<int, ServerHealth> _serverHealthMap = <int, ServerHealth>{}.obs;
+  final RxMap<int, bool> _healthCheckLoading = <int, bool>{}.obs;
 
   // VPN Connection
-  VPNConnection _vpnConnection = VPNConnection(state: VPNState.disconnected);
+  final Rx<VPNConnection> _vpnConnection = VPNConnection(state: VPNState.disconnected).obs;
   Timer? _statusTimer;
 
   // Configs
-  List<VPNConfig> _configs = [];
-  bool _isLoadingConfigs = false;
-  String? _configsError;
+  final RxList<VPNConfig> _configs = <VPNConfig>[].obs;
+  final RxBool _isLoadingConfigs = false.obs;
+  final RxString _configsError = ''.obs;
 
   // Getters
   List<Server> get servers => _servers;
-  bool get isLoadingServers => _isLoadingServers;
-  String? get serversError => _serversError;
+  bool get isLoadingServers => _isLoadingServers.value;
+  String get serversError => _serversError.value;
 
-  VPNConnection get vpnConnection => _vpnConnection;
-  bool get isConnected => _vpnConnection.isConnected;
-  bool get isConnecting => _vpnConnection.isConnecting;
-  VPNState get vpnState => _vpnConnection.state;
+  VPNConnection get vpnConnection => _vpnConnection.value;
+  bool get isConnected => _vpnConnection.value.isConnected;
+  bool get isConnecting => _vpnConnection.value.isConnecting;
+  VPNState get vpnState => _vpnConnection.value.state;
 
   List<VPNConfig> get configs => _configs;
-  bool get isLoadingConfigs => _isLoadingConfigs;
-  String? get configsError => _configsError;
+  bool get isLoadingConfigs => _isLoadingConfigs.value;
+  String get configsError => _configsError.value;
 
   ServerHealth? getServerHealth(int serverId) => _serverHealthMap[serverId];
   bool isHealthCheckLoading(int serverId) => _healthCheckLoading[serverId] ?? false;
+
+  @override
+  void onClose() {
+    _stopStatusMonitoring();
+    super.onClose();
+  }
 
   // Set API token
   void setToken(String? token) {
@@ -48,29 +55,27 @@ class VPNProvider with ChangeNotifier {
 
   // Load servers
   Future<void> loadServers({bool refresh = false}) async {
-    if (_isLoadingServers && !refresh) return;
+    if (_isLoadingServers.value && !refresh) return;
 
     try {
-      _isLoadingServers = true;
-      _serversError = null;
-      notifyListeners();
+      _isLoadingServers.value = true;
+      _serversError.value = '';
 
       final response = await _apiService.getServers(limit: 50);
 
       if (response.isSuccess && response.data != null) {
-        _servers = response.data!.items;
-        _serversError = null;
+        _servers.value = response.data!.items;
+        _serversError.value = '';
 
         // Load health for all servers
         _loadAllServerHealth();
       } else {
-        _serversError = response.message;
+        _serversError.value = response.message;
       }
     } catch (e) {
-      _serversError = _getErrorMessage(e);
+      _serversError.value = _getErrorMessage(e);
     } finally {
-      _isLoadingServers = false;
-      notifyListeners();
+      _isLoadingServers.value = false;
     }
   }
 
@@ -79,25 +84,22 @@ class VPNProvider with ChangeNotifier {
     for (final server in _servers) {
       _loadServerHealth(server.id, notify: false);
     }
-    notifyListeners();
   }
 
   // Load server health
   Future<void> _loadServerHealth(int serverId, {bool notify = true}) async {
     try {
       _healthCheckLoading[serverId] = true;
-      if (notify) notifyListeners();
 
       final response = await _apiService.getServerHealth(serverId);
 
-      if (response.isSuccess) {
+      if (response.isSuccess && response.data != null) {
         _serverHealthMap[serverId] = response.data!;
       }
     } catch (e) {
-      debugPrint('Failed to load health for server $serverId: $e');
+      print('Failed to load health for server $serverId: $e');
     } finally {
       _healthCheckLoading[serverId] = false;
-      if (notify) notifyListeners();
     }
   }
 
@@ -108,36 +110,34 @@ class VPNProvider with ChangeNotifier {
 
   // Load VPN configs
   Future<void> loadConfigs({bool refresh = false}) async {
-    if (_isLoadingConfigs && !refresh) return;
+    if (_isLoadingConfigs.value && !refresh) return;
 
     try {
-      _isLoadingConfigs = true;
-      _configsError = null;
-      notifyListeners();
+      _isLoadingConfigs.value = true;
+      _configsError.value = '';
 
       final response = await _apiService.getVPNConfigs(limit: 50);
 
       if (response.isSuccess && response.data != null) {
-        _configs = response.data!.items;
-        _configsError = null;
+        _configs.value = response.data!.items;
+        _configsError.value = '';
 
         // If we have an active config, update VPN state
-        if (_configs.isNotEmpty && _vpnConnection.isDisconnected) {
+        if (_configs.isNotEmpty && _vpnConnection.value.isDisconnected) {
           final activeConfig = _configs.first;
-          _vpnConnection = VPNConnection(
+          _vpnConnection.value = VPNConnection(
             state: VPNState.connected,
             config: activeConfig,
           );
           _startStatusMonitoring();
         }
       } else {
-        _configsError = response.message;
+        _configsError.value = response.message;
       }
     } catch (e) {
-      _configsError = _getErrorMessage(e);
+      _configsError.value = _getErrorMessage(e);
     } finally {
-      _isLoadingConfigs = false;
-      notifyListeners();
+      _isLoadingConfigs.value = false;
     }
   }
 
@@ -145,109 +145,100 @@ class VPNProvider with ChangeNotifier {
   Future<bool> connectToVPN(Server server) async {
     try {
       // Check if already connected to this server
-      if (_vpnConnection.isConnected &&
-          _vpnConnection.config?.serverId == server.id) {
+      if (_vpnConnection.value.isConnected &&
+          _vpnConnection.value.config?.serverId == server.id) {
         return true;
       }
 
       // Set connecting state
-      _vpnConnection = VPNConnection(state: VPNState.connecting);
-      notifyListeners();
+      _vpnConnection.value = VPNConnection(state: VPNState.connecting);
 
       final response = await _apiService.createVPNConnection(server.id);
 
       if (response.isSuccess && response.data != null) {
-        _vpnConnection = VPNConnection(
+        _vpnConnection.value = VPNConnection(
           state: VPNState.connected,
           config: response.data!,
         );
 
         // Add to configs list
-        _configs = [response.data!, ..._configs.where((c) => c.id != response.data!.id)];
+        _configs.value = [response.data!, ..._configs.where((c) => c.id != response.data!.id)];
 
         // Start monitoring
         _startStatusMonitoring();
 
-        notifyListeners();
         return true;
       } else {
-        _vpnConnection = VPNConnection(
+        _vpnConnection.value = VPNConnection(
           state: VPNState.error,
           errorMessage: response.message,
         );
-        notifyListeners();
         return false;
       }
     } catch (e) {
-      _vpnConnection = VPNConnection(
+      _vpnConnection.value = VPNConnection(
         state: VPNState.error,
         errorMessage: _getErrorMessage(e),
       );
-      notifyListeners();
       return false;
     }
   }
 
   // Disconnect from VPN
   Future<bool> disconnectVPN() async {
-    if (!_vpnConnection.isConnected || _vpnConnection.config == null) {
+    if (!_vpnConnection.value.isConnected || _vpnConnection.value.config == null) {
       return true;
     }
 
     try {
-      _vpnConnection = VPNConnection(
+      _vpnConnection.value = VPNConnection(
         state: VPNState.disconnecting,
-        config: _vpnConnection.config,
+        config: _vpnConnection.value.config,
       );
-      notifyListeners();
 
-      final response = await _apiService.disconnectVPN(_vpnConnection.config!.id);
+      final response = await _apiService.disconnectVPN(_vpnConnection.value.config!.id);
 
       if (response.isSuccess) {
-        _vpnConnection = VPNConnection(state: VPNState.disconnected);
+        _vpnConnection.value = VPNConnection(state: VPNState.disconnected);
 
         // Remove from configs
-        _configs = _configs.where((c) => c.id != _vpnConnection.config?.id).toList();
+        _configs.removeWhere((c) => c.id == _vpnConnection.value.config?.id);
 
         // Stop monitoring
         _stopStatusMonitoring();
 
-        notifyListeners();
         return true;
       } else {
-        _vpnConnection = VPNConnection(
+        _vpnConnection.value = VPNConnection(
           state: VPNState.error,
-          config: _vpnConnection.config,
+          config: _vpnConnection.value.config,
           errorMessage: response.message,
         );
-        notifyListeners();
         return false;
       }
     } catch (e) {
-      _vpnConnection = VPNConnection(
+      _vpnConnection.value = VPNConnection(
         state: VPNState.error,
-        config: _vpnConnection.config,
+        config: _vpnConnection.value.config,
         errorMessage: _getErrorMessage(e),
       );
-      notifyListeners();
       return false;
     }
   }
 
   // Force disconnect
   Future<bool> forceDisconnectVPN() async {
-    if (!_vpnConnection.isConnected || _vpnConnection.config == null) {
+    if (!_vpnConnection.value.isConnected || _vpnConnection.value.config == null) {
       return true;
     }
 
     try {
-      final response = await _apiService.forceDisconnectVPN(_vpnConnection.config!.id);
+      final response = await _apiService.forceDisconnectVPN(_vpnConnection.value.config!.id);
 
       if (response.isSuccess) {
-        _vpnConnection = VPNConnection(state: VPNState.disconnected);
-        _configs = _configs.where((c) => c.id != _vpnConnection.config?.id).toList();
+        _vpnConnection.value = VPNConnection(state: VPNState.disconnected);
+        _configs.removeWhere((c) => c.id == _vpnConnection.value.config?.id);
         _stopStatusMonitoring();
-        notifyListeners();
         return true;
       }
       return false;
@@ -276,23 +267,22 @@ class VPNProvider with ChangeNotifier {
 
   // Update connection status
   Future<void> _updateConnectionStatus() async {
-    if (!_vpnConnection.isConnected || _vpnConnection.config == null) {
+    if (!_vpnConnection.value.isConnected || _vpnConnection.value.config == null) {
       return;
     }
 
     try {
-      final response = await _apiService.getVPNStatus(_vpnConnection.config!.id);
+      final response = await _apiService.getVPNStatus(_vpnConnection.value.config!.id);
 
-      if (response.isSuccess) {
-        _vpnConnection = VPNConnection(
+      if (response.isSuccess && response.data != null) {
+        _vpnConnection.value = VPNConnection(
           state: VPNState.connected,
-          config: _vpnConnection.config,
+          config: _vpnConnection.value.config,
           status: response.data!,
         );
-        notifyListeners();
       }
     } catch (e) {
-      debugPrint('Failed to update VPN status: $e');
+      print('Failed to update VPN status: $e');
     }
   }
 
@@ -300,39 +290,35 @@ class VPNProvider with ChangeNotifier {
   Future<VPNConfigFile?> getConfigFile(VPNConfig config) async {
     try {
       final response = await _apiService.downloadVPNConfig(config.id);
-      if (response.isSuccess) {
+      if (response.isSuccess && response.data != null) {
         return response.data!;
       }
       return null;
     } catch (e) {
-      debugPrint('Failed to get config file: $e');
+      print('Failed to get config file: $e');
       return null;
     }
   }
 
   // Clear errors
   void clearServersError() {
-    _serversError = null;
-    notifyListeners();
+    _serversError.value = '';
   }
 
   void clearConfigsError() {
-    _configsError = null;
-    notifyListeners();
+    _configsError.value = '';
   }
 
   void clearVPNError() {
-    if (_vpnConnection.hasError) {
-      _vpnConnection = VPNConnection(state: VPNState.disconnected);
-      notifyListeners();
+    if (_vpnConnection.value.hasError) {
+      _vpnConnection.value = VPNConnection(state: VPNState.disconnected);
     }
   }
 
   // Reset VPN state
   void resetVPNState() {
-    _vpnConnection = VPNConnection(state: VPNState.disconnected);
+    _vpnConnection.value = VPNConnection(state: VPNState.disconnected);
     _stopStatusMonitoring();
-    notifyListeners();
   }
 
   // Get error message
@@ -341,11 +327,5 @@ class VPNProvider with ChangeNotifier {
       return error.message;
     }
     return error.toString();
-  }
-
-  @override
-  void dispose() {
-    _stopStatusMonitoring();
-    super.dispose();
   }
 }

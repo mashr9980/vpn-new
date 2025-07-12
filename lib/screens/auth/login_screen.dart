@@ -1,12 +1,14 @@
+// lib/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
+import '../../controller/auth_controller.dart';
+import '../../controller/vpn_controller.dart';
 import '../../core/theme/app_theme.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/vpn_provider.dart';
-import '../home/home_screen.dart';
-import 'register_screen.dart';
+// import '../../controllers/auth_controller.dart';
+// import '../../controllers/vpn_controller.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
+import '../../widgets/custom_text_field.dart' hide CustomTextField;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +21,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthController _authController = Get.find<AuthController>();
+  final VPNController _vpnController = Get.find<VPNController>();
 
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
@@ -65,50 +69,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await context.read<AuthProvider>().login(
+    final success = await _authController.login(
       username: _usernameController.text.trim(),
       password: _passwordController.text,
     );
 
-    if (success && mounted) {
-      // Set token for VPN provider
-      final authProvider = context.read<AuthProvider>();
-      context.read<VPNProvider>().setToken(authProvider.token);
+    if (success) {
+      // Set token for VPN controller
+      _vpnController.setToken(_authController.token);
 
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(1.0, 0.0),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 300),
-        ),
-      );
+      // Navigate to home
+      Get.offAllNamed(AppRoutes.home);
     }
   }
 
   void _navigateToRegister() {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const RegisterScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(1.0, 0.0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
+    Get.toNamed(AppRoutes.register);
   }
 
   @override
@@ -198,102 +174,100 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _buildLoginForm() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Username field
-              CustomTextField(
-                controller: _usernameController,
-                label: 'Username',
-                prefixIcon: Icons.person_outline,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your username';
-                  }
-                  return null;
-                },
-                enabled: !authProvider.isLoading,
-              ),
+    return Obx(() {
+      return Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Username field
+            CustomTextField(
+              controller: _usernameController,
+              label: 'Username',
+              prefixIcon: Icons.person_outline,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your username';
+                }
+                return null;
+              },
+              enabled: !_authController.isLoading,
+            ),
 
-              const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-              // Password field
-              CustomTextField(
-                controller: _passwordController,
-                label: 'Password',
-                prefixIcon: Icons.lock_outline,
-                obscureText: _obscurePassword,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                    color: AppColors.grey500,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+            // Password field
+            CustomTextField(
+              controller: _passwordController,
+              label: 'Password',
+              prefixIcon: Icons.lock_outline,
+              obscureText: _obscurePassword,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  color: AppColors.grey500,
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  return null;
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
                 },
-                enabled: !authProvider.isLoading,
               ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your password';
+                }
+                return null;
+              },
+              enabled: !_authController.isLoading,
+            ),
 
-              const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-              // Error message
-              if (authProvider.error != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.error.withOpacity(0.3),
-                    ),
+            // Error message
+            if (_authController.error.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.error.withOpacity(0.3),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: AppColors.error,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          authProvider.error!,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.error,
-                          ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _authController.error,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.error,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-
-              const SizedBox(height: 32),
-
-              // Login button
-              CustomButton(
-                text: 'Sign In',
-                onPressed: authProvider.isLoading ? null : _handleLogin,
-                isLoading: authProvider.isLoading,
-                icon: Icons.login,
               ),
-            ],
-          ),
-        );
-      },
-    );
+
+            const SizedBox(height: 32),
+
+            // Login button
+            CustomButton(
+              text: 'Sign In',
+              onPressed: _authController.isLoading ? null : _handleLogin,
+              isLoading: _authController.isLoading,
+              icon: Icons.login,
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildRegisterLink() {
