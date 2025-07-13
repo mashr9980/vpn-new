@@ -2,7 +2,7 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import '../models/app_models.dart';
-import '../services/api_service.dart';
+import '../services/api_service.dart' hide ApiException;
 
 class AuthController extends GetxController {
   final VPNApiService _apiService = Get.find<VPNApiService>();

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/app_models.dart';
-import '../services/api_service.dart';
+import '../services/api_service.dart' hide ApiException;
 
 class VPNProvider with ChangeNotifier {
   final VPNApiService _apiService = VPNApiService();

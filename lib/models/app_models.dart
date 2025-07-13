@@ -267,8 +267,8 @@ class VPNConfigFile {
 
   factory VPNConfigFile.fromJson(Map<String, dynamic> json) {
     return VPNConfigFile(
-      configContent: json['config_content'],
-      qrCode: json['qr_code'],
+      configContent: json['config_content'] ?? '',
+      qrCode: json['qr_code'] ?? '',
       serverInfo: Map<String, dynamic>.from(json['server_info'] ?? {}),
       connectionInfo: Map<String, dynamic>.from(json['connection_info'] ?? {}),
     );
@@ -408,4 +408,31 @@ class PaginatedData<T> {
   bool get hasMore => page < pages;
   bool get isEmpty => items.isEmpty;
   bool get isNotEmpty => items.isNotEmpty;
+}
+
+extension ListExtensions<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    try {
+      return firstWhere(test);
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
+class ApiException implements Exception {
+  final String message;
+  final String? code;
+  final int? statusCode;
+  final Map<String, dynamic>? details;
+
+  ApiException(this.message, {this.code, this.statusCode, this.details});
+
+  @override
+  String toString() => message;
+
+  bool get isValidationError => code == 'VALIDATION_ERROR';
+  bool get isAuthError => code == 'AUTH_ERROR';
+  bool get isConflictError => code == 'RESOURCE_CONFLICT';
+  bool get isNotFoundError => code == 'RESOURCE_NOT_FOUND';
 }

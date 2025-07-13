@@ -442,25 +442,76 @@ class VPNApiService {
         if (search != null && search.isNotEmpty) 'search': search,
       });
 
+      print('Making getVPNConfigs request to: $uri');
+
       final response = await http.get(
         uri,
         headers: _headers,
       ).timeout(const Duration(seconds: 30));
 
-      return _handleResponse<PaginatedData<VPNConfig>>(
-        response,
-            (data) => PaginatedData.fromJson(
-          data,
-              (json) => VPNConfig.fromJson(json),
-        ),
-      );
+      print('getVPNConfigs Response Status Code: ${response.statusCode}');
+      print('getVPNConfigs Response Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final responseBody = response.body;
+
+        // Check if response is a direct array or structured response
+        if (responseBody.trim().startsWith('[')) {
+          // Direct array response
+          final List<dynamic> configList = json.decode(responseBody);
+          print('Received direct array of ${configList.length} configs');
+
+          final configs = configList
+              .map((configJson) => VPNConfig.fromJson(configJson as Map<String, dynamic>))
+              .toList();
+
+          final paginatedData = PaginatedData<VPNConfig>(
+            items: configs,
+            total: configs.length,
+            page: page,
+            limit: limit,
+            pages: 1,
+          );
+
+          return ApiResponse<PaginatedData<VPNConfig>>(
+            status: 'success',
+            message: 'VPN configs loaded successfully',
+            data: paginatedData,
+            timestamp: DateTime.now().toIso8601String(),
+          );
+        } else {
+          // Structured response format
+          return _handleResponse<PaginatedData<VPNConfig>>(
+            response,
+                (data) => PaginatedData.fromJson(
+              data['configs'] != null
+                  ? {'items': data['configs'], ...data}
+                  : data,
+                  (json) => VPNConfig.fromJson(json),
+            ),
+          );
+        }
+      } else {
+        return _handleResponse<PaginatedData<VPNConfig>>(
+          response,
+              (data) => PaginatedData.fromJson(
+            data['configs'] != null
+                ? {'items': data['configs'], ...data}
+                : data,
+                (json) => VPNConfig.fromJson(json),
+          ),
+        );
+      }
     } on SocketException {
       throw ApiException('No internet connection');
     } catch (e) {
+      print('Error in getVPNConfigs: $e');
       if (e is ApiException) rethrow;
       throw ApiException('Failed to get VPN configs: ${e.toString()}');
     }
   }
+
+
 
   Future<ApiResponse<VPNConfig>> createVPNConnection(int serverId) async {
     if (!await _checkConnectivity()) {

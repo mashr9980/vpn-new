@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'package:get/get.dart';
 import '../models/app_models.dart';
-import '../services/api_service.dart';
+import '../services/api_service.dart' hide ApiException;
 
 class VPNController extends GetxController {
   final VPNApiService _apiService = Get.find<VPNApiService>();
@@ -153,6 +153,22 @@ class VPNController extends GetxController {
       // Set connecting state
       _vpnConnection.value = VPNConnection(state: VPNState.connecting);
 
+      // Check if user already has a config for this server
+      final existingConfig = FirstWhereExt(_configs).firstWhereOrNull((config) => config.serverId == server.id);
+
+      if (existingConfig != null) {
+        // Use existing config instead of creating new one
+        _vpnConnection.value = VPNConnection(
+          state: VPNState.connected,
+          config: existingConfig,
+        );
+
+        // Start monitoring
+        _startStatusMonitoring();
+
+        return true;
+      }
+
       final response = await _apiService.createVPNConnection(server.id);
 
       if (response.isSuccess && response.data != null) {
@@ -176,9 +192,27 @@ class VPNController extends GetxController {
         return false;
       }
     } catch (e) {
+      String errorMessage = _getErrorMessage(e);
+
+      // Handle specific error for existing config
+      if (errorMessage.contains('already has an active configuration')) {
+        // Reload configs and try to use existing one
+        await loadConfigs(refresh: true);
+        final existingConfig = FirstWhereExt(_configs).firstWhereOrNull((config) => config.serverId == server.id);
+
+        if (existingConfig != null) {
+          _vpnConnection.value = VPNConnection(
+            state: VPNState.connected,
+            config: existingConfig,
+          );
+          _startStatusMonitoring();
+          return true;
+        }
+      }
+
       _vpnConnection.value = VPNConnection(
         state: VPNState.error,
-        errorMessage: _getErrorMessage(e),
+        errorMessage: errorMessage,
       );
       return false;
     }
