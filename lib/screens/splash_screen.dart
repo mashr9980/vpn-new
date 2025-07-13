@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/auth_controller.dart';
+import '../services/connectivity_service.dart';
 import '../core/theme/app_theme.dart';
 import '../routes/app_routes.dart';
 
@@ -49,10 +50,17 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _initializeApp() async {
     _animationController.forward();
 
-    // Wait for auth initialization
+    final connectivityService = Get.find<ConnectivityService>();
     final authController = Get.find<AuthController>();
 
-    // Wait for animation to complete
+    if (!connectivityService.isConnected) {
+      await Future.delayed(const Duration(milliseconds: 2500));
+      if (mounted) {
+        _showNoInternetDialog();
+      }
+      return;
+    }
+
     await Future.delayed(const Duration(milliseconds: 2500));
 
     if (mounted) {
@@ -67,6 +75,35 @@ class _SplashScreenState extends State<SplashScreen>
       Get.offAllNamed(AppRoutes.home);
     } else {
       Get.offAllNamed(AppRoutes.login);
+    }
+  }
+
+  void _showNoInternetDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('No Internet Connection'),
+        content: const Text('Please check your internet connection and try again.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Get.back();
+              _retryConnection();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  void _retryConnection() async {
+    final connectivityService = Get.find<ConnectivityService>();
+
+    if (await connectivityService.checkConnectivity()) {
+      _navigateToNextScreen();
+    } else {
+      _showNoInternetDialog();
     }
   }
 
@@ -87,7 +124,6 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo and app name
               AnimatedBuilder(
                 animation: _animationController,
                 builder: (context, child) {
@@ -97,7 +133,6 @@ class _SplashScreenState extends State<SplashScreen>
                       scale: _scaleAnimation,
                       child: Column(
                         children: [
-                          // VPN Shield Icon
                           Container(
                             width: 120,
                             height: 120,
@@ -119,7 +154,6 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                           const SizedBox(height: 32),
-                          // App Name
                           Text(
                             'SecureVPN',
                             style: Theme.of(context).textTheme.displayMedium?.copyWith(
@@ -129,7 +163,6 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // Tagline
                           Text(
                             'Fast • Secure • Private',
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -147,7 +180,6 @@ class _SplashScreenState extends State<SplashScreen>
 
               const SizedBox(height: 80),
 
-              // Loading indicator
               AnimatedBuilder(
                 animation: _fadeAnimation,
                 builder: (context, child) {

@@ -8,7 +8,7 @@ import '../../core/theme/app_theme.dart';
 // import '../../controllers/vpn_controller.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart' hide CustomTextField;
+import '../../widgets/custom_text_field.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

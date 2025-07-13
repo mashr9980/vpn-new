@@ -6,12 +6,12 @@ import 'controller/auth_controller.dart';
 import 'controller/vpn_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'services/api_service.dart';
+import 'services/connectivity_service.dart';
 import 'routes/app_routes.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -21,17 +21,14 @@ void main() {
     ),
   );
 
-  // Initialize dependencies
   initServices();
 
   runApp(const MyApp());
 }
 
 void initServices() {
-  // Initialize API Service
+  Get.put(ConnectivityService(), permanent: true);
   Get.put(VPNApiService(), permanent: true);
-
-  // Initialize Controllers
   Get.put(AuthController(), permanent: true);
   Get.put(VPNController(), permanent: true);
 }
